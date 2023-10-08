@@ -11,18 +11,19 @@ const mockedFetch = jest.mocked(fetch)
 describe('did:web utilities', () => {
 
     const EXAMPLE_DID = 'did:web:example.com'
+    const EXAMPLE_PUBLIC_KEY = '0x02f034136f204a02045c17f977fa9ac36362fe5a86524b464a56a26cbfb0754e23'
 
     const mockWrite = jest.fn().mockResolvedValue(true)
     const mockDelete = jest.fn().mockResolvedValue(true)
 
     const noopDidWebStore =   {
-        baseDid: EXAMPLE_DID,
+        defaultDid: EXAMPLE_DID,
         write: mockWrite,
         delete: mockDelete
     }
 
     class InMemoryDidWebStore implements DidWebStore {
-        baseDid = EXAMPLE_DID
+        defaultDid = EXAMPLE_DID
         didWebStore = new Map<string, DIDDocument>()
         write (did: string, didDocument: DIDDocument): Promise<boolean> {
             this.didWebStore.set(did, didDocument) 
@@ -35,20 +36,9 @@ describe('did:web utilities', () => {
     }
 
 
-    const webDIDMethod = new WebDIDMethod({didWebStore: noopDidWebStore, keyAlg: KEY_ALG.EdDSA})
+    const webDIDMethod = new WebDIDMethod({didWebStore: noopDidWebStore, defaultKeyAlg: KEY_ALG.EdDSA})
 
-    // TODO:
-    const EXAMPLE_KEY_PAIR = {
-        algorithm: KEY_ALG.EdDSA,
-        publicKey: '0x02f034136f204a02045c17f977fa9ac36362fe5a86524b464a56a26cbfb0754e23',
-        privateKey: '0xd42a4eacb5cf7758ae07e12f3b3971b643b6c78f18972eb5444ffd66e03bac15'
-    };
-    const EXAMPLE_DID_KEY_PAIR = {
-        did: EXAMPLE_DID,
-        keyPair: EXAMPLE_KEY_PAIR
-    }
-
-    const ED_25519_DID_DOC = {
+    const ed25519DidDocument = {
         "@context": [DID_CONTEXT, ED25519_2018_CONTEXT],
         id: EXAMPLE_DID,
         verificationMethod: [
@@ -64,22 +54,6 @@ describe('did:web utilities', () => {
         ],
         assertionMethod: [
             "did:web:example.com#sdHeQWTwoA91yu2YMsBs9HruxAAe6ribkmBqXhpAKVeJ"]
-    }
-
-    // Examples from web-did-resolver
-    const ETH_IDENTITY = '0x2Cc31912B2b0f3075A87b3640923D45A26cef3Ee'
-    const ETH_DID_DOC: DIDDocument = {
-        '@context': DID_CONTEXT,
-        id: EXAMPLE_DID,
-        publicKey: [
-            {
-                id: `${EXAMPLE_DID}#owner`,
-                type: 'EcdsaSecp256k1RecoveryMethod2020',
-                controller: EXAMPLE_DID,
-                ethereumAddress: ETH_IDENTITY,
-            },
-        ],
-        authentication: [`${EXAMPLE_DID}#owner`],
     }
 
     beforeEach(() => {
@@ -188,11 +162,11 @@ describe('did:web utilities', () => {
     it('Creating a did:web fails if didWebStore fails', async () => {
         const mockFailedWrite = jest.fn().mockResolvedValue(false)
         const mockDidWebStore = {
-            baseDid: EXAMPLE_DID,
+            defaultDid: EXAMPLE_DID,
             write: mockFailedWrite,
             delete: mockWrite
         }
-        const webDIDMethod = new WebDIDMethod({didWebStore: mockDidWebStore, keyAlg: KEY_ALG.EdDSA})
+        const webDIDMethod = new WebDIDMethod({didWebStore: mockDidWebStore, defaultKeyAlg: KEY_ALG.EdDSA})
 
         await expect(webDIDMethod.create()).rejects.toThrowError(DIDMethodFailureError)
         expect(mockFailedWrite).toBeCalledTimes(1)
@@ -200,7 +174,7 @@ describe('did:web utilities', () => {
 
     it('Resolution of did:web succeeds', async () => {
         mockedFetch.mockResolvedValueOnce({
-            json: () => Promise.resolve(ETH_DID_DOC),
+            json: () => Promise.resolve(ed25519DidDocument),
         } as Response)
 
         const res = await webDIDMethod.resolve("did:web:example.com")
@@ -211,7 +185,7 @@ describe('did:web utilities', () => {
 
         // configure with a DidWebStore that stores didDocuments in memory
         const inMemoryStore = new InMemoryDidWebStore()
-        const webDIDMethodWithStore = new WebDIDMethod({didWebStore: inMemoryStore, keyAlg: KEY_ALG.EdDSA})
+        const webDIDMethodWithStore = new WebDIDMethod({didWebStore: inMemoryStore, defaultKeyAlg: KEY_ALG.EdDSA})
         const didWeb = await webDIDMethodWithStore.createWithDid("did:web:example.com:alice:1234")
         
         const didDoc = inMemoryStore.didWebStore.get(didWeb.did)
@@ -228,7 +202,7 @@ describe('did:web utilities', () => {
     it('Resolving an updated did:web succeeds', async () => {
         // configure with a DidWebStore that stores didDocuments in memory
         const inMemoryStore = new InMemoryDidWebStore()
-        const webDIDMethodWithStore = new WebDIDMethod({didWebStore: inMemoryStore, keyAlg: KEY_ALG.EdDSA})
+        const webDIDMethodWithStore = new WebDIDMethod({didWebStore: inMemoryStore, defaultKeyAlg: KEY_ALG.EdDSA})
         const didWeb = await webDIDMethodWithStore.createWithDid("did:web:example.com:alice:1234")
 
         const newKey = await KeyUtils.createEd25519KeyPair()
@@ -254,7 +228,6 @@ describe('did:web utilities', () => {
         await expect(webDIDMethod.resolve(wrongDid))
             .rejects.toThrowError(DIDMethodFailureError)
     })
-
 
 
     it('Successfully updates a did:web', async () => {
@@ -284,13 +257,13 @@ describe('did:web utilities', () => {
     it('Updating a did:web fails if didWebStore fails', async () => {
         const mockFailedWrite = jest.fn().mockResolvedValueOnce(true).mockResolvedValueOnce(false)
         const mockDidWebStore = {
-            baseDid: EXAMPLE_DID,
+            defaultDid: EXAMPLE_DID,
             write: mockFailedWrite,
             delete: mockWrite
         }
-        const webDIDMethod = new WebDIDMethod({didWebStore: mockDidWebStore, keyAlg: KEY_ALG.EdDSA})
+        const webDIDMethod = new WebDIDMethod({didWebStore: mockDidWebStore, defaultKeyAlg: KEY_ALG.EdDSA})
         const didWeb = await webDIDMethod.create()
-        await expect(webDIDMethod.update(didWeb, EXAMPLE_KEY_PAIR.publicKey)).rejects.toThrowError(DIDMethodFailureError)
+        await expect(webDIDMethod.update(didWeb, EXAMPLE_PUBLIC_KEY)).rejects.toThrowError(DIDMethodFailureError)
         expect(mockFailedWrite).toBeCalledTimes(2)
     })
 
@@ -305,11 +278,11 @@ describe('did:web utilities', () => {
     it('Deleting did:web fails if didWebStore fails', async () => {
         const mockFailedDelete = jest.fn().mockResolvedValue(false)
         const mockDidWebStore = {
-            baseDid: EXAMPLE_DID,
+            defaultDid: EXAMPLE_DID,
             write: mockWrite,
             delete: mockFailedDelete
         }
-        const webDIDMethod = new WebDIDMethod({didWebStore: mockDidWebStore, keyAlg: KEY_ALG.EdDSA})
+        const webDIDMethod = new WebDIDMethod({didWebStore: mockDidWebStore, defaultKeyAlg: KEY_ALG.EdDSA})
 
 
         const didWeb = await webDIDMethod.create()
@@ -322,11 +295,11 @@ describe('did:web utilities', () => {
         webDIDMethod.resolve = jest.fn().mockResolvedValueOnce({
             didDocumentMetadata: {},
             didResolutionMetadata: { contentType: 'application/did+ld+json' }, 
-            didDocument: ED_25519_DID_DOC
+            didDocument: ed25519DidDocument
         }
         )
 
-        const res = await webDIDMethod.isActive(EXAMPLE_DID_KEY_PAIR.did)
+        const res = await webDIDMethod.isActive(EXAMPLE_DID)
         expect(res).toBe(true)
     })
 
@@ -362,11 +335,11 @@ describe('did:web utilities', () => {
         })
 
         mockedFetch.mockResolvedValueOnce({
-            json: () => Promise.resolve(ETH_DID_DOC),
+            json: () => Promise.resolve(ed25519DidDocument),
         } as Response)
 
         const res = await resolverWrapper.resolve("did:web:example.com")
-        expect(res.didDocument).toMatchObject(ETH_DID_DOC)
+        expect(res.didDocument).toMatchObject(ed25519DidDocument)
 
     })
 
@@ -427,22 +400,22 @@ describe('did:web utilities', () => {
 
 
     it('Successfully formats a did:web did document from a KeyPair on formatDidDocument', () => {
-        const didWebDocument = webDIDMethod.formatDidDocument(EXAMPLE_DID_KEY_PAIR.did, EXAMPLE_DID_KEY_PAIR.keyPair.publicKey)
-        expect(didWebDocument).toMatchObject(ED_25519_DID_DOC)
+        const didWebDocument = webDIDMethod.formatDidDocument(EXAMPLE_DID, EXAMPLE_PUBLIC_KEY)
+        expect(didWebDocument).toMatchObject(ed25519DidDocument)
     })
 
     it('Formatting a did:web did document for an invalid did fails', () => {
-        expect(() => webDIDMethod.formatDidDocument('did:pkh:xyv2-xzpq-q9wa-p7t', EXAMPLE_DID_KEY_PAIR.keyPair.publicKey))
+        expect(() => webDIDMethod.formatDidDocument('did:pkh:xyv2-xzpq-q9wa-p7t', EXAMPLE_PUBLIC_KEY))
             .toThrowError(DIDMethodFailureError)
     })
 
-    it('Creating did:web method fails if baseDid is invalid', async () => {
+    it('Creating did:web method fails if defaultDid is invalid', async () => {
         const mockDidWebStore = {
-            baseDid: 'did:web:dgef^',
+            defaultDid: 'did:web:dgef^',
             write: mockWrite,
             delete: mockDelete
         }
-        expect(() => new WebDIDMethod({didWebStore: mockDidWebStore, keyAlg: KEY_ALG.EdDSA})).toThrowError(DIDMethodFailureError)
+        expect(() => new WebDIDMethod({didWebStore: mockDidWebStore, defaultKeyAlg: KEY_ALG.EdDSA})).toThrowError(DIDMethodFailureError)
     })
 
 

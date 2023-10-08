@@ -68,7 +68,7 @@ export class PkhDIDMethod implements DIDMethod {
      * 
      * @param privateKey - private key to be used in creation of a did:pkh DID
      * @returns a `Promise` that resolves to {@link DIDWithKeys}
-     * @throws `DIDMethodFailureError` if private key is not in hex format
+     * @throws {@link DIDMethodFailureError} if private key is not in hex format
      */
     async generateFromPrivateKey(privateKey: string | Uint8Array): Promise<DIDWithKeys> {
         if (!KeyUtils.isHexPrivateKey(privateKey)) {
@@ -97,7 +97,7 @@ export class PkhDIDMethod implements DIDMethod {
      * 
      * @param did - the DID to be resolved
      * @returns a `Promise` that resolves to `DIDResolutionResult` defined in did-resolver
-     * @throws `DIDMethodFailureError` if resolution failed
+     * @throws {@link DIDMethodFailureError} if resolution failed
      */
     async resolve(did: DID): Promise<DIDResolutionResult> {
         const pkhResolver = new Resolver(getResolver())
@@ -110,7 +110,7 @@ export class PkhDIDMethod implements DIDMethod {
     
     /**
      * did:pkh does not support update
-     * @throws `DIDMethodFailureError`
+     * @throws {@link DIDMethodFailureError}
      */
     async update(_did: DIDWithKeys, _publicKey: string | Uint8Array): Promise<boolean> {
         throw new DIDMethodFailureError('did:pkh does not support Update')
@@ -118,7 +118,7 @@ export class PkhDIDMethod implements DIDMethod {
 
     /**
      * did:pkh does not support deactivate
-     * @throws `DIDMethodFailureError`
+     * @throws {@link DIDMethodFailureError}
      */
     async deactivate(_did: DIDWithKeys): Promise<boolean> {
         throw new DIDMethodFailureError('did:pkh does not support Delete')
@@ -129,7 +129,7 @@ export class PkhDIDMethod implements DIDMethod {
      * 
      * @param did - DID to check status of
      * @returns a `Promise` that always resolves to true if DID is in correct format
-     * @throws `DIDMethodFailureError` if format check fails
+     * @throws {@link DIDMethodFailureError} if format check fails
      */
     async isActive(did: DID): Promise<boolean> {
         return this.checkFormat(did)
@@ -144,7 +144,7 @@ export class PkhDIDMethod implements DIDMethod {
      * 
      * @param did - DID string
      * @returns the Identifier section of the DID
-     * @throws `DIDMethodFailureError` if format check fails
+     * @throws {@link DIDMethodFailureError} if format check fails
      */
     getIdentifier(did: string): string {
         if(!this.checkFormat(did)) {

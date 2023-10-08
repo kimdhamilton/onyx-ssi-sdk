@@ -44,6 +44,11 @@ The functionality added for this challenge should be unit tested. Tests can be a
 
 ### did:web
 
+/*
+* A did:web DID is creating by hosting a DID document at a defined URL. 
+* @see {@link formatDidDocument} for details.
+*/
+
 Because modifications to did:web DIDs require creatng, upating, or removing a did.json file at the appropriate URL, a few simplifications and assumptions were made to conform to the `DIDMethod` while keeping the semantics clean.
 
 1. Implemented support for only Ed25519 key pairs and `Ed25519VerificationKey2018` verification method: Note that did:web supports a range of verification methods and key type
@@ -57,5 +62,22 @@ Because modifications to did:web DIDs require creatng, upating, or removing a di
 relies on ctor config rather than introducing too many overloads
 still retains key / verification method coupling
 
+```
+    // Examples from web-did-resolver
+    const ETH_IDENTITY = '0x2Cc31912B2b0f3075A87b3640923D45A26cef3Ee'
+    const ethDidDocument: DIDDocument = {
+        '@context': DID_CONTEXT,
+        id: EXAMPLE_DID,
+        publicKey: [
+            {
+                id: `${EXAMPLE_DID}#owner`,
+                type: 'EcdsaSecp256k1RecoveryMethod2020',
+                controller: EXAMPLE_DID,
+                ethereumAddress: ETH_IDENTITY,
+            },
+        ],
+        authentication: [`${EXAMPLE_DID}#owner`],
+    }
 
+```
 ### did:pkh
