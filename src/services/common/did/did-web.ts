@@ -5,6 +5,8 @@ import { DIDMethodFailureError } from "../../../errors"
 import { BytesLike, base58 } from "ethers/lib/utils"
 import { DID_CONTEXT, ED25519_2018_CONTEXT } from "../schemas"
 import { KEY_ALG, KeyPair, KeyUtils } from "../../../utils"
+import { randomBytes } from "crypto"
+import { Ed25519KeyPair } from "@transmute/ed25519-key-pair"
 
 /*
 * A did:web DID is creating by hosting a DID document at a defined URL. 
@@ -257,8 +259,32 @@ export class WebDIDMethod implements DIDMethod {
             throw new DIDMethodFailureError('Failed to create did:web DID')
         }
         return result
-
     }
+
+    async createEd25519KeyPair(_privateKey?: string | Uint8Array): Promise<KeyPair> {
+        let bytes: Uint8Array | undefined
+        if (_privateKey) {
+            if (!KeyUtils.isBytesPrivateKey(_privateKey)) {
+                throw new DIDMethodFailureError('private key not in correct byte format')
+            }
+
+            bytes = new Uint8Array((_privateKey as Uint8Array).subarray(0,32))
+        } 
+
+        const seed = () => {
+            return bytes || randomBytes(32)
+        }
+    
+        const key = await Ed25519KeyPair.generate({
+            secureRandom: seed})
+
+        return  {
+            algorithm: KEY_ALG.EdDSA,
+            publicKey: key.publicKey,
+            privateKey: key.privateKey as Uint8Array,
+        }
+    }
+
 
     /**
      * Utility method convert DIDWithKeys into a DID document that can be hosted at the did:web URL.

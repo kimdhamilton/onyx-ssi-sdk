@@ -137,8 +137,10 @@ export class PkhDIDMethod implements DIDMethod {
     }
 
     /**
-     * Helper function to return the Identifier from a did:PKH string
-     *  TODO: SHOULD THIS CONTAIN NETWORK??
+     * Helper function to return the Identifier from a did:pkh string
+     * This currently includes the network and chainId but that can be
+     * removed depending on emergent semantics and requirements of 
+     * getIdentifier
      * 
      * @param did - DID string
      * @returns the Identifier section of the DID
@@ -149,7 +151,6 @@ export class PkhDIDMethod implements DIDMethod {
             throw new DIDMethodFailureError('DID format incorrect')
         }
         return `${did.substring(did.indexOf(':', did.indexOf(':') + 1) + 1)}`
-        // TODO THIS ISN'T RIGHT
     }
 
     /**
@@ -177,7 +178,4 @@ export class PkhDIDMethod implements DIDMethod {
         const keyMatcher = /^did:pkh:(bip122|eip155|tezos):[-_a-zA-Z0-9]{1,32}:[-.%a-zA-Z0-9]{1,128}$/ 
         return keyMatcher.test(did as string)
     }
-  
-  
-    
 }
