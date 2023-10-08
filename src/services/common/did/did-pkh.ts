@@ -9,15 +9,6 @@ import { ProviderConfigs } from "./did-ethr"
 import { Wallet } from "@ethersproject/wallet"
 
 
-
-/**
- * Currently does not support arweave and solana
- * 
-    // networks:
-    // eip155: eth, celo, poly
-    // tezos: tezos (tz1, tz2, tz3) 
-    // bip122: btc, doge
- */
 export class PkhDIDMethod implements DIDMethod {
     name = 'pkh'
     network = 'eip155'

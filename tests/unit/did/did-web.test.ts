@@ -1,6 +1,6 @@
 import { randomBytes } from 'crypto'
 import { DIDMethodFailureError } from '../../../src/errors'
-import { DidWebStore, WebDIDMethod } from '../../../src/services/common/did'
+import { DIDWebStore, WebDIDMethod } from '../../../src/services/common/did'
 import { KeyUtils, KEY_ALG } from '../../../src/utils'
 import { DID_CONTEXT, ED25519_2018_CONTEXT } from '../../../src/services/common'
 import { DIDDocument, Resolver } from 'did-resolver'
@@ -22,7 +22,7 @@ describe('did:web utilities', () => {
         delete: mockDelete
     }
 
-    class InMemoryDidWebStore implements DidWebStore {
+    class InMemoryDidWebStore implements DIDWebStore {
         defaultDid = EXAMPLE_DID
         didWebStore = new Map<string, DIDDocument>()
         write (did: string, didDocument: DIDDocument): Promise<boolean> {

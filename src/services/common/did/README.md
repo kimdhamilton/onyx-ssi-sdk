@@ -169,11 +169,55 @@ There are two variants of did:web DIDs -- bare domain and path:
 
 did:web takes a required `WebProviderConfig` argument that allows notifications of did:web events, which could result in either immediate or offline updates to the content at the relevant URL.
 
-TODO
+```shell
 
+interface WebProviderConfigs {
+    /** 
+     *
+     * Receives update/delete notifications when a did:web DID is modified, including create, update, and deactivate events.
+     *  This asusmes that the backing store is responsible for and capable of making updates to the did:web DID document at the corresponding URL.
+     */
+    didWebStore: {
+      {
+        /**
+        * Default did to use for the did:web DID Method
+        */
+        defaultDid: string
+
+        /**
+        * Called on a write event to a did:web DID document corresponding to the DID.
+        * @param did - DID string
+        * @param didDocument - the {@link DIDDocument}
+        * @returns  a `Promise` that resolves to a boolean indicating whether the delete was successful
+        */
+        write: (did: string, didDocument: DIDDocument) => Promise<boolean>
+
+        /**
+        * Called on a delete the DID document corresponding to the DID.
+        * @param did - DID string
+        * @returns a `Promise` that resolves to a boolean indicating whether the delete was successful
+        */
+        delete: (did: string) => Promise<boolean>
+    }
+    /** 
+     * Default KEY_ALG to use for the did:web DID Method.
+     * Currently only supports EdDSA keypairs.
+     */
+    defaultKeyAlg: KEY_ALG
+
+}
+
+```
+
+Currently `WebDIDMethod` only supports Ed25519 key pairs, but support could be added in the future.
 
 
 ### did:pkh
 
 
+[did:pkh](https://github.com/w3c-ccg/did-pkh/blob/main/did-pkh-method-draft.md) is similar to did:key in that it is generative, and doesn't support update or delete. It's designed to integrate easily with crypto wallets while enabling chain-agnostic communication between dapps and wallets. It can be used as an upgradeable or composable DID method ([Upgradeable Decentralized Identity](https://blog.spruceid.com/upgradeable-decentralized-identity/)), in that a did:pkh start as an Ethereum-account based `did:pkh`, and later upgraded to a DID method that supports key rotation, such as `did:ethr`, `did:ens`, or `did:ion`.
 
+Currently `PkhDIDMethod` only supports the `eip155` network and Ethereum wallets for creation and updates. For resolving, it supports the following networks via the `pkh-did-resolver` library:
+- eip155: eth, celo, poly
+- tezos: tezos (tz1, tz2, tz3) 
+- bip122: btc, doge

@@ -9,7 +9,7 @@ import { KEY_ALG, KeyPair, KeyUtils } from "../../../utils"
 export class WebDIDMethod implements DIDMethod {
     name = 'web';
     providerConfigs: WebProviderConfigs
-    didWebStore: DidWebStore
+    didWebStore: DIDWebStore
     keyAlg: KEY_ALG
 
 
@@ -315,7 +315,7 @@ export interface DIDWithPublicKeys {
  * to the did:web DID document at the corresponding URL.
  * 
  */
-export interface DidWebStore {
+export interface DIDWebStore {
     /**
      * Default did to use for the did:web DID Method
      */
@@ -342,8 +342,8 @@ export interface DidWebStore {
  * Configuration for the did:web DID Method
  */
 export interface WebProviderConfigs {
-    /** The {@link DidWebStore} receives update/delete notifications when a did:web DID is modified */
-    didWebStore: DidWebStore
+    /** The {@link DIDWebStore} receives update/delete notifications when a did:web DID is modified */
+    didWebStore: DIDWebStore
     /** 
      * Default {@link KEY_ALG} to use for the did:web DID Method.
      * Currently only supports EdDSA keypairs.
