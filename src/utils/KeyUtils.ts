@@ -1,6 +1,8 @@
 import { publicKeyCreate } from 'secp256k1';
 import { isString } from 'lodash'
 import { KeyTypeError } from '../errors';
+import { randomBytes } from 'crypto';
+import { Ed25519KeyPair } from '@transmute/ed25519-key-pair';
 export class KeyUtils {
 
     static readonly PUBLIC_KEY_LENGTH = 32;
@@ -65,6 +67,30 @@ export class KeyUtils {
      */
     static isBytesPublicKey(key: string | Uint8Array): boolean {
         return !isString(key) && key.length === KeyUtils.PUBLIC_KEY_LENGTH;
+    }
+
+    static async createEd25519KeyPair(privateKey?: string | Uint8Array): Promise<KeyPair> {
+        let bytes: Uint8Array | undefined
+        if (privateKey) {
+            if (!KeyUtils.isBytesPrivateKey(privateKey)) {
+                throw new KeyTypeError('private key not in correct byte format')
+            }
+
+            bytes = new Uint8Array((privateKey as Uint8Array).subarray(0,32))
+        } 
+
+        const seed = () => {
+            return bytes || randomBytes(32)
+        }
+  
+        const key = await Ed25519KeyPair.generate({
+            secureRandom: seed})
+
+        return  {
+            algorithm: KEY_ALG.EdDSA,
+            publicKey: key.publicKey,
+            privateKey: key.privateKey as Uint8Array,
+        }
     }
 }
 

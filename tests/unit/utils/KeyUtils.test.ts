@@ -119,4 +119,37 @@ describe('key utilities', () => {
         const check = KeyUtils.isBytesPublicKey(ethrKeys.keyPair.publicKey)
         expect(check).toBeFalsy()
     })
+
+    it('Creates Ed25519 key pair', async () => {
+        const keyPair = await KeyUtils.createEd25519KeyPair()
+        expect(keyPair).toBeDefined()
+        expect(keyPair.algorithm).toEqual(KEY_ALG.EdDSA)
+        expect(keyPair.publicKey).toBeDefined()
+        expect(keyPair.privateKey).toBeDefined()
+        expect(keyPair.publicKey.length).toEqual(32)
+        expect(keyPair.privateKey.length).toEqual(64)
+    })
+
+    it('Creates Ed25519 key pair with private key', async () => {
+        const keyPair = await KeyUtils.createEd25519KeyPair()
+        const keyPairDupe = await KeyUtils.createEd25519KeyPair(keyPair.privateKey)
+        expect(keyPairDupe).toBeDefined()
+        expect(keyPairDupe.algorithm).toEqual(KEY_ALG.EdDSA)
+        expect(keyPairDupe.publicKey).toEqual(keyPair.publicKey)
+    })
+
+    it('Generation of Ed25519 key pair from existing private key in hex format fails', async () => {
+        const privateKey = '0x69af672c46812a314eacbd90d6ee24cf5c03c4f46205f0b9b6fa2a079295e838'
+
+        await expect(KeyUtils.createEd25519KeyPair(privateKey))
+            .rejects.toThrowError(KeyTypeError)
+    })
+
+    it('Generation of Ed25519 key pair from private key with incorrect byte count fails', async () => {
+        const privateKey = randomBytes(33)
+
+        await expect(KeyUtils.createEd25519KeyPair(privateKey))
+            .rejects.toThrowError(KeyTypeError)
+    })
+
 })

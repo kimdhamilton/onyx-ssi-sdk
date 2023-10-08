@@ -37,6 +37,7 @@ describe('did:web utilities', () => {
 
     const webDIDMethod = new WebDIDMethod({didWebStore: noopDidWebStore, keyAlg: KEY_ALG.EdDSA})
 
+    // TODO:
     const EXAMPLE_KEY_PAIR = {
         algorithm: KEY_ALG.EdDSA,
         publicKey: '0x02f034136f204a02045c17f977fa9ac36362fe5a86524b464a56a26cbfb0754e23',
@@ -156,6 +157,46 @@ describe('did:web utilities', () => {
             .rejects.toThrowError(DIDMethodFailureError)
     })
 
+    it('Successfully generates a did:web from existing private key and did', async () => {
+        const keyPair = await KeyUtils.createEd25519KeyPair()
+
+        const didWeb = await webDIDMethod.generateFromPrivateKeyWithDid(keyPair.privateKey, 'did:web:example.com:alice:1234')
+        expect(didWeb.did.startsWith(`did:${webDIDMethod.name}`)).toBe(true)
+        expect(didWeb.did).toEqual('did:web:example.com:alice:1234')
+        expect(didWeb.keyPair.privateKey).toBeDefined()
+        expect(didWeb.keyPair.publicKey).toBeDefined()
+        expect(didWeb.keyPair.algorithm).toBeDefined()
+        expect(didWeb.keyPair.algorithm).toEqual(keyPair.algorithm)
+        expect(didWeb.keyPair.privateKey).toEqual(keyPair.privateKey)
+        expect(didWeb.keyPair.publicKey).toEqual(keyPair.publicKey)
+        expect(mockWrite).toBeCalledTimes(1)
+    })
+
+    it('Generation of did:web from existing private key in hex format fails', async () => {
+        const privateKey = '0x69af672c46812a314eacbd90d6ee24cf5c03c4f46205f0b9b6fa2a079295e838'
+
+        await expect(webDIDMethod.generateFromPrivateKeyWithDid(privateKey, 'did:web:example.com'))
+            .rejects.toThrowError(DIDMethodFailureError)
+    })
+
+    it('Generation of did:web from existing private key and invalid did fails', async () => {
+        const keyPair = await KeyUtils.createEd25519KeyPair()
+        await expect(webDIDMethod.generateFromPrivateKeyWithDid(keyPair.privateKey, 'did:btcr:xyv2-xzpq-q9wa-p7t'))
+            .rejects.toThrowError(DIDMethodFailureError)
+    })
+
+    it('Creating a did:web fails if didWebStore fails', async () => {
+        const mockFailedWrite = jest.fn().mockResolvedValue(false)
+        const mockDidWebStore = {
+            baseDid: EXAMPLE_DID,
+            write: mockFailedWrite,
+            delete: mockWrite
+        }
+        const webDIDMethod = new WebDIDMethod({didWebStore: mockDidWebStore, keyAlg: KEY_ALG.EdDSA})
+
+        await expect(webDIDMethod.create()).rejects.toThrowError(DIDMethodFailureError)
+        expect(mockFailedWrite).toBeCalledTimes(1)
+    })
 
     it('Resolution of did:web succeeds', async () => {
         mockedFetch.mockResolvedValueOnce({
@@ -202,7 +243,7 @@ describe('did:web utilities', () => {
         expect(res.didDocument).toMatchObject(updatedDidDoc!)
 
     })
-    it('Resolving an invalid did:web DID fails', async () => {
+    it('Resolving an invalid did:web did fails', async () => {
         const wrongDid = 'did:web:1234%'
         await expect(webDIDMethod.resolve(wrongDid))
             .rejects.toThrowError(DIDMethodFailureError)
@@ -240,12 +281,42 @@ describe('did:web utilities', () => {
             .rejects.toThrowError(DIDMethodFailureError)
     })
 
+    it('Updating a did:web fails if didWebStore fails', async () => {
+        const mockFailedWrite = jest.fn().mockResolvedValueOnce(true).mockResolvedValueOnce(false)
+        const mockDidWebStore = {
+            baseDid: EXAMPLE_DID,
+            write: mockFailedWrite,
+            delete: mockWrite
+        }
+        const webDIDMethod = new WebDIDMethod({didWebStore: mockDidWebStore, keyAlg: KEY_ALG.EdDSA})
+        const didWeb = await webDIDMethod.create()
+        await expect(webDIDMethod.update(didWeb, EXAMPLE_KEY_PAIR.publicKey)).rejects.toThrowError(DIDMethodFailureError)
+        expect(mockFailedWrite).toBeCalledTimes(2)
+    })
+
+
     it('Deleting did:web succeeds', async () => {
         const didWeb = await webDIDMethod.create()
         const result = expect(webDIDMethod.deactivate(didWeb))
         expect(result).toBeTruthy()
         expect(mockDelete).toBeCalledTimes(1)
     })
+
+    it('Deleting did:web fails if didWebStore fails', async () => {
+        const mockFailedDelete = jest.fn().mockResolvedValue(false)
+        const mockDidWebStore = {
+            baseDid: EXAMPLE_DID,
+            write: mockWrite,
+            delete: mockFailedDelete
+        }
+        const webDIDMethod = new WebDIDMethod({didWebStore: mockDidWebStore, keyAlg: KEY_ALG.EdDSA})
+
+
+        const didWeb = await webDIDMethod.create()
+        expect(webDIDMethod.deactivate(didWeb)).rejects.toThrowError(DIDMethodFailureError)
+        expect(mockFailedDelete).toBeCalledTimes(1)
+    })
+
 
     it('did:web active status true', async () => {
         webDIDMethod.resolve = jest.fn().mockResolvedValueOnce({
@@ -299,46 +370,81 @@ describe('did:web utilities', () => {
 
     })
 
-    it('Check format of a valid did:web DID succeeds', () => {
+    it('Check format of a valid did:web did succeeds', () => {
         const didWeb = 'did:web:example.com'
         const format = webDIDMethod.checkFormat(didWeb)
 
         expect(format).toBeTruthy()
     })
 
-    it('Check format of a valid did:web DID succeeds (domain and path)', () => {
+    it('Check format of a valid did:web did succeeds (domain and path)', () => {
         const didWeb = 'did:web:example.com:user:alice'
         const format = webDIDMethod.checkFormat(didWeb)
 
         expect(format).toBeTruthy()
     })
 
-    it('Check format of an invalid did:web DID fails', async () => {
+    it('Check format of an invalid did:web did fails', async () => {
         const didWeb = 'did:web:badExample&'
         const format = webDIDMethod.checkFormat(didWeb)
 
         expect(format).toBeFalsy()
     })
 
-    it('Check format of a different DID method fails', async () => {
+    it('Check format of a different did method fails', async () => {
         const didWeb = 'did:btcr:xyv2-xzpq-q9wa-p7t'
         const format = webDIDMethod.checkFormat(didWeb)
 
         expect(format).toBeFalsy()
     })
 
-    it('Check format of a non-DID string', async () => {
+    it('Check format of a non-did string', async () => {
         const didWeb = '12345678'
         const format = webDIDMethod.checkFormat(didWeb)
 
         expect(format).toBeFalsy()
     })
 
+    it('Converts a did:web did to a url', async () => {
+        const didWeb = 'did:web:example.com'
+        const url = webDIDMethod.didWebToUrl(didWeb)
 
-    it('Successfully formats a did:web DID document from a KeyPair on formatDidDocument', async () => {
+        expect(url).toEqual('https://example.com/.well-known/did.json')
+    })
+
+    it('Converts a did:web did with path to a url', async () => {
+        const didWeb = 'did:web:example.com:alice:123'
+        const url = webDIDMethod.didWebToUrl(didWeb)
+
+        expect(url).toEqual('https://example.com/alice/123/did.json')
+    })
+
+    it('Converting a did:web did a url fails for an invalid did', async () => {
+        const badDidWeb = 'did:pkh:xyv2-xzpq-q9wa-p7t'
+        expect(() => webDIDMethod.didWebToUrl(badDidWeb))
+            .toThrowError(DIDMethodFailureError)
+    })
+
+
+    it('Successfully formats a did:web did document from a KeyPair on formatDidDocument', () => {
         const didWebDocument = webDIDMethod.formatDidDocument(EXAMPLE_DID_KEY_PAIR.did, EXAMPLE_DID_KEY_PAIR.keyPair.publicKey)
         expect(didWebDocument).toMatchObject(ED_25519_DID_DOC)
     })
+
+    it('Formatting a did:web did document for an invalid did fails', () => {
+        expect(() => webDIDMethod.formatDidDocument('did:pkh:xyv2-xzpq-q9wa-p7t', EXAMPLE_DID_KEY_PAIR.keyPair.publicKey))
+            .toThrowError(DIDMethodFailureError)
+    })
+
+    it('Creating did:web method fails if baseDid is invalid', async () => {
+        const mockDidWebStore = {
+            baseDid: 'did:web:dgef^',
+            write: mockWrite,
+            delete: mockDelete
+        }
+        expect(() => new WebDIDMethod({didWebStore: mockDidWebStore, keyAlg: KEY_ALG.EdDSA})).toThrowError(DIDMethodFailureError)
+    })
+
 
 })
 
