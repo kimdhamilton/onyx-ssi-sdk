@@ -1,6 +1,8 @@
 import { publicKeyCreate } from 'secp256k1';
 import { isString } from 'lodash'
 import { KeyTypeError } from '../errors';
+import { Ed25519KeyPair } from '@transmute/ed25519-key-pair';
+import { randomBytes } from 'crypto';
 export class KeyUtils {
 
     static readonly PUBLIC_KEY_LENGTH = 32;
@@ -65,6 +67,65 @@ export class KeyUtils {
      */
     static isBytesPublicKey(key: string | Uint8Array): boolean {
         return !isString(key) && key.length === KeyUtils.PUBLIC_KEY_LENGTH;
+    }
+
+    // TODO: generalize and create unit test. plus make formats consistent
+    static async createKeyPair(keyAlg: KEY_ALG, privateKey?: string | Uint8Array): Promise<KeyPair> {
+
+        if (keyAlg === KEY_ALG.EdDSA) {
+            return this.createEd25519KeyPair(privateKey)
+        } else if (keyAlg === KEY_ALG.ES256K) {
+            return this.createSecp256k1KeyPair(privateKey)
+        } else {
+            throw new KeyTypeError('invalid key algorithm')
+        }
+    }
+
+    static async createEd25519KeyPair(_privateKey?: string | Uint8Array): Promise<KeyPair> {
+        let bytes: Uint8Array | undefined
+        if (_privateKey) {
+            if (!this.isBytesPrivateKey(_privateKey)) {
+                throw new KeyTypeError('private key not in correct format')
+            }
+
+            bytes = new Uint8Array((_privateKey as Uint8Array).subarray(0,32))
+        } 
+
+        const seed = () => {
+            return bytes || randomBytes(32)
+        }
+      
+        const key = await Ed25519KeyPair.generate({
+            secureRandom: seed})
+  
+        return  {
+            algorithm: KEY_ALG.EdDSA,
+            publicKey: key.publicKey,
+            privateKey: key.privateKey as Uint8Array,
+        }
+    }
+
+    static createSecp256k1KeyPair(_privateKey?: string | Uint8Array): KeyPair {
+
+        let bytes = randomBytes(32) 
+        if (_privateKey) {
+            if (!this.isBytesPrivateKey(_privateKey)) {
+                throw new KeyTypeError('private key not in correct format')
+            }
+
+            bytes = Buffer.from(new Uint8Array((_privateKey as Uint8Array).subarray(0,32)))
+        } else {
+            bytes = randomBytes(32)
+        }
+
+        const privateKey = `0x${bytes.toString('hex')}`
+        const publicKey = `0x${this.privateKeyToPublicKey(privateKey)}` 
+
+        return {
+            algorithm: KEY_ALG.ES256K,
+            publicKey: publicKey,
+            privateKey: privateKey 
+        }
     }
 }
 

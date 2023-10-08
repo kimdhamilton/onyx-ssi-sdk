@@ -42,7 +42,11 @@ The DID method is the way by which the DID and its associated DID Document are c
 #### Available DID methods
 Many implementations of the DID specification exist. Not all DID methods require use of a blockchain, and there are pros and cons to using specific methods. The list of available DID methods are [here](https://www.w3.org/TR/did-spec-registries/#did-methods) or [here](https://diddirectory.com/)
 
-The DID methods currently supported in this SDK are [did:key](https://w3c-ccg.github.io/did-method-key/) and [did:ethr](https://github.com/decentralized-identity/ethr-did-resolver/blob/master/doc/did-method-spec.md)
+The DID methods currently supported in this SDK are:
+- [did:key](https://w3c-ccg.github.io/did-method-key/)
+- [did:ethr](https://github.com/decentralized-identity/ethr-did-resolver/blob/master/doc/did-method-spec.md)
+- [did:web](https://w3c-ccg.github.io/did-method-web/)
+- [did:pkh](https://github.com/w3c-ccg/did-pkh/blob/main/did-pkh-method-draft.md)
 
 ## DID Operations in this SDK
 ### CRUD
@@ -151,3 +155,25 @@ interface ProviderConfigs {
 }
 
 ```
+
+
+### did:web
+
+[did:web](https://w3c-ccg.github.io/did-method-web/) associates a DID with a DID document hosted on a web domain. It is more commonly used by organizations than individuals, since organizations typically already manage a web domain and have the necessarily controls to ensure its security.
+
+There are two variants of did:web DIDs -- bare domain and path:
+
+- A bare domain DID looks like `did:web:example.com`, which resolves to a DID Document hosted at the URL: `https://example.com/.well-known/did.json`. There is one such DID per domain
+- A did:web DID with paths looks like `did:web:example.com:user:alice`, which resolves to a DID Document hosted at the URL `https://example.com/user/alice/did.json`. There can be many of these per domain. They could represent subgroups within an organization or DIDs assigned to users that are managed by the organization.
+
+
+did:web takes a required `WebProviderConfig` argument that allows notifications of did:web events, which could result in either immediate or offline updates to the content at the relevant URL.
+
+TODO
+
+
+
+### did:pkh
+
+
+

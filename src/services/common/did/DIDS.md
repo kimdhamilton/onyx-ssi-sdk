@@ -39,3 +39,23 @@ The functionality added for this challenge should be unit tested. Tests can be a
 * Code written has corresponding unit tests (90% coverage)
 * Code is well documented
 * Code passes CI github action (building, linting, and testing of SDK)
+
+## Design Decisions
+
+### did:web
+
+Because modifications to did:web DIDs require creatng, upating, or removing a did.json file at the appropriate URL, a few simplifications and assumptions were made to conform to the `DIDMethod` while keeping the semantics clean.
+
+1. Implemented support for only Ed25519 key pairs and `Ed25519VerificationKey2018` verification method: Note that did:web supports a range of verification methods and key type
+2. and this minimal implemenetation that doesn't overburden the `DIDMethod` contract.
+    * The DIDMethod contract assumes DID method / keypair coupling.
+    * 
+    * In the future, we could use config to specify defaults and provide new overloads, e.g. for did methods
+    * that support more key types and capabilities (services) 
+
+
+relies on ctor config rather than introducing too many overloads
+still retains key / verification method coupling
+
+
+### did:pkh
