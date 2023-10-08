@@ -14,6 +14,7 @@ This documentation provides an overview of the design decisions, simplifications
     - [did:web Configuration](#didweb-configuration)
     - [Other Simplifications and Assumptions](#other-simplifications-and-assumptions)
     - [Summary of Key and Verification Method Mapping](#summary-of-key-and-verification-method-mapping)
+    - [Other FYIs](#other-fyis)
   - [Future Opportunities](#future-opportunities)
     - [did-pkh](#did-pkh)
     - [did:web](#didweb-1)
@@ -76,7 +77,7 @@ This decision, including the specific design of `DIDWebStore`, should be revisit
 
 ### Summary of Key and Verification Method Mapping
 
-Provided for future reference. 
+Provided for general reference. 
 
 With the addition of these `did:web` and `did:pkh` implementations, the current state of key / verification method support in the Onyx library is as follows. Asterisks (`*`) are next to did-methods that support flexible key / verification method options.  
 
@@ -87,6 +88,9 @@ With the addition of these `did:web` and `did:pkh` implementations, the current 
 | did:web  | web-did-resolver  | Ed25519*   | EdDSA  | Ed25519VerificationMethod2018    |
 | did:pkh  | pkh-did-resolver  | secp256k1* | ES256K | EcdsaSecp256k1RecoveryMethod2020 |
 
+### Other FYIs
+
+A couple of jest build modifications were needed because of `pkh-did-resolver`. That includes the addition of the babel npm (dev) packages, `babel.config.js` changes, and jest.config.js changes.
 
 ## Future Opportunities
 

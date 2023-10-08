@@ -317,22 +317,22 @@ export interface DIDWithPublicKeys {
  */
 export interface DIDWebStore {
     /**
-     * Default did to use for the did:web DID Method
+     * Default DID to use for the did:web DID Method
      */
     defaultDid: string
 
     /**
-     * Write the did:web DID document corresponding to the DID.
+     * Called upon a write event to a did:web DID.
      * @param did - DID string
      * @param didDocument - the {@link DIDDocument}
-     * @returns  a `Promise` that resolves to a boolean indicating whether the delete was successful
+     * @returns  a `Promise` that resolves to a boolean indicating whether the delete was handled
      */
     write: (did: string, didDocument: DIDDocument) => Promise<boolean>
 
     /**
-     * Delete the DID document corresponding to the DID.
+     * Called upon a delete event to a did:web DID.
      * @param did - DID string
-     * @returns a `Promise` that resolves to a boolean indicating whether the delete was successful
+     * @returns a `Promise` that resolves to a boolean indicating whether the delete was handled
      */
     delete: (did: string) => Promise<boolean>
 
@@ -350,4 +350,3 @@ export interface WebProviderConfigs {
      */
     defaultKeyAlg: KEY_ALG
 }
-

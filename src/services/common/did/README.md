@@ -180,22 +180,22 @@ interface WebProviderConfigs {
     didWebStore: {
       {
         /**
-        * Default did to use for the did:web DID Method
+        * Default DID to use for the did:web DID Method
         */
         defaultDid: string
 
         /**
-        * Called on a write event to a did:web DID document corresponding to the DID.
+        * Called upon a write event to a did:web.
         * @param did - DID string
         * @param didDocument - the {@link DIDDocument}
-        * @returns  a `Promise` that resolves to a boolean indicating whether the delete was successful
+        * @returns  a `Promise` that resolves to a boolean indicating whether the write was handled
         */
         write: (did: string, didDocument: DIDDocument) => Promise<boolean>
 
         /**
-        * Called on a delete the DID document corresponding to the DID.
+        * Called upon a delete event to a did:web DID.
         * @param did - DID string
-        * @returns a `Promise` that resolves to a boolean indicating whether the delete was successful
+        * @returns a `Promise` that resolves to a boolean indicating whether the delete was handled
         */
         delete: (did: string) => Promise<boolean>
     }
@@ -213,7 +213,6 @@ Currently `WebDIDMethod` only supports Ed25519 key pairs, but support could be a
 
 
 ### did:pkh
-
 
 [did:pkh](https://github.com/w3c-ccg/did-pkh/blob/main/did-pkh-method-draft.md) is similar to did:key in that it is generative, and doesn't support update or delete. It's designed to integrate easily with crypto wallets while enabling chain-agnostic communication between dapps and wallets. It can be used as an upgradeable or composable DID method ([Upgradeable Decentralized Identity](https://blog.spruceid.com/upgradeable-decentralized-identity/)), in that a did:pkh start as an Ethereum-account based `did:pkh`, and later upgraded to a DID method that supports key rotation, such as `did:ethr`, `did:ens`, or `did:ion`.
 
