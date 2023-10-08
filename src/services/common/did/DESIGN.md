@@ -4,22 +4,20 @@ This documentation provides an overview of the design decisions, simplifications
 
 ## Table of Contents
 
-- [Design Documentation for DID Hackathon](#design-documentation-for-did-hackathon)
-  - [Table of Contents](#table-of-contents)
-  - [Why did:web and did:pkh](#why-didweb-and-didpkh)
-    - [did:web](#didweb)
-    - [did:pkh](#didpkh)
-  - [Design Decisions](#design-decisions)
-    - [did:pkh Network Support](#didpkh-network-support)
-    - [did:web Configuration](#didweb-configuration)
-    - [Other Simplifications and Assumptions](#other-simplifications-and-assumptions)
-    - [Summary of Key and Verification Method Mapping](#summary-of-key-and-verification-method-mapping)
-    - [Other FYIs](#other-fyis)
-  - [Future Opportunities](#future-opportunities)
-    - [did-pkh](#did-pkh)
-    - [did:web](#didweb-1)
-    - [General](#general)
-  - [References](#references)
+- [Why did:web and did:pkh](#why-didweb-and-didpkh)
+  - [did:web](#didweb)
+  - [did:pkh](#didpkh)
+- [Design Decisions](#design-decisions)
+  - [did:pkh Network Support](#didpkh-network-support)
+  - [did:web Configuration](#didweb-configuration)
+  - [Other Simplifications and Assumptions](#other-simplifications-and-assumptions)
+  - [Summary of Key and Verification Method Mapping](#summary-of-key-and-verification-method-mapping)
+  - [Other FYIs](#other-fyis)
+- [Future Opportunities](#future-opportunities)
+  - [did-pkh](#did-pkh)
+  - [did:web](#didweb-1)
+  - [General](#general)
+- [References](#references)
 
 
 ## Why did:web and did:pkh
