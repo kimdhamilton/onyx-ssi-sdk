@@ -3,7 +3,7 @@ import { DIDMethodFailureError } from '../../../src/errors'
 import { DidWebStore, WebDIDMethod } from '../../../src/services/common/did'
 import { KeyUtils, KEY_ALG } from '../../../src/utils'
 import { DID_CONTEXT, ED25519_2018_CONTEXT } from '../../../src/services/common'
-import { DIDDocument } from 'did-resolver'
+import { DIDDocument, Resolver } from 'did-resolver'
 import fetch from 'cross-fetch'
 jest.mock('cross-fetch')
 const mockedFetch = jest.mocked(fetch)
@@ -278,6 +278,25 @@ describe('did:web utilities', () => {
 
         expect(() => webDIDMethod.getIdentifier(didWeb))
             .toThrow(DIDMethodFailureError)
+    })
+
+
+    it('Getting the resolver returns a valid web resolver', async () => {
+        const webResolver = webDIDMethod.getDIDResolver()
+        expect(webResolver).toBeDefined()
+
+        const resolverWrapper = new Resolver({
+            ...webResolver
+            //...other reoslvers
+        })
+
+        mockedFetch.mockResolvedValueOnce({
+            json: () => Promise.resolve(ETH_DID_DOC),
+        } as Response)
+
+        const res = await resolverWrapper.resolve("did:web:example.com")
+        expect(res.didDocument).toMatchObject(ETH_DID_DOC)
+
     })
 
     it('Check format of a valid did:web DID succeeds', () => {

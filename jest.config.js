@@ -9,5 +9,8 @@ module.exports = {
         ['lcov', { projectRoot: '../' }],
         'text-summary',
     ],
-    transformIgnorePatterns: ["/node_modules/(?!key-did-resolver/)"]
+    transform: {
+        '^.+\\.(js|ts)$': 'babel-jest',
+    },
+    transformIgnorePatterns: ["/node_modules/(?!key-did-resolver|pkh-did-resolver/)"]
 };
