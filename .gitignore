@@ -45,3 +45,6 @@ cache
 artifacts
 gasreports
 deployments
+
+# System files
+.DS_Store
