@@ -2,6 +2,7 @@ import { ES256KSigner } from 'did-jwt'
 import { Resolvable } from 'did-resolver'
 import {
     ObjectPropertyClaim,
+    buildDigestDisclosableMap,
     bytesToBase64url,
     createArrayElementDisclosable,
     createObjectPropertyDisclosable,
@@ -9,6 +10,7 @@ import {
     createSdJWT,
     decodeSdJWT,
     encodeBase64url,
+    expandDisclosures,
     formSdJwt,
     fromString,
     hashDisclosure,
@@ -40,7 +42,7 @@ import {
     SD_JWT_REPEATED_CLAIM,
 } from "./data/sdjwt.vectors"
 
-import {expect, jest, it} from '@jest/globals';
+import {expect, jest, it} from '@jest/globals'
 
 /**
  * If set to true, this uses a special stringify function that allows an
@@ -167,7 +169,7 @@ describe('SD-JWT utilities tests', () => {
     })
 
     /* Ensures disclosures roundtrip */
-    describe('parseObjectPropertyDisclosure()', () => {
+    describe('parseDisclosure()', () => {
         it.each(OBJECT_PROPERTY_DISCLOSURE_TEST_CASES)(
             'parses disclosures stringified with specCompatStringify (specDisclosure: $specDisclosure)',
             ({ specDisclosure, key, value, salt }) => {
@@ -184,7 +186,7 @@ describe('SD-JWT utilities tests', () => {
             }
         )
 
-        it('rejects an ill-formed disclosure', async () => {
+        it('rejects a disclosure with extra decoded array entries', async () => {
             const salt = createSalt()
 
             const badDisclosure = [salt, 'address', 'Schulstr. 12', 'extraneous input']
@@ -194,10 +196,20 @@ describe('SD-JWT utilities tests', () => {
 
             expect(() => parseDisclosure(encdoedDisclosure)).toThrow()
         })
+
+        it('rejects a disclosure that decodes to an unexpected object', async () => {
+            const badDisclosure = 123
+            const stringified = JSON.stringify(badDisclosure)
+            const asBytes = stringToBytes(stringified)
+            const encdoedDisclosure = bytesToBase64url(asBytes)
+
+            expect(() => parseDisclosure(encdoedDisclosure)).toThrow()
+        })
+
     })
 
-})
 
+})
 
 describe('SD-JWT core functionality', () => {
     const address = '0xf3beac30c498d9e26865f34fcaa57dbb935b0d74'
@@ -378,7 +390,7 @@ describe('SD-JWT core functionality', () => {
         })
 
         /* Disclose only 1 of the 4 disclosures (street address) on example ADDRESS_OPTION_2.
-    This test simulates a holder revealing only a subset of disclosures. */
+         This test simulates a holder revealing only a subset of disclosures. */
         it('ignores undisclosed digests', () => {
             const sdJwt = formSdJwt(ADDRESS_OPTION_2_JWT_ONLY, ADDRESS_OPTION_2_DISCLOSURES.slice(0, 1))
             const decoded = decodeSdJWT(sdJwt, true)
@@ -424,6 +436,95 @@ describe('SD-JWT core functionality', () => {
             const sdJwt = formSdJwt(ADDRESS_OPTION_2_JWT_ONLY, [encodedDisclosure])
 
             await expect(verifySdJWT(sdJwt, { resolver })).rejects.toThrow()
+        })
+    })
+
+    describe('expandDisclosures()', () => {
+
+        it('Successfully expands disclosures with recursion set to true', () => {
+            const map = buildDigestDisclosableMap(ADDRESS_OPTION_3_DISCLOSURES)
+            const result = expandDisclosures(ADDRESS_OPTION_3, map, true)
+            expect(result).toMatchObject({
+                "sub": "6c5c0a49-b589-431d-bae7-219122a9ec2c",
+                "address": {
+                    "locality": "Schulpforta",
+                    "street_address": "Schulstr. 12",
+                    "region": "Sachsen-Anhalt",
+                    "country": "DE"
+                }
+            })
+
+        })
+
+        it('Successfully expands disclosures with recursion set to false', () => {
+            const map = buildDigestDisclosableMap(ADDRESS_OPTION_3_DISCLOSURES)
+            const result = expandDisclosures(ADDRESS_OPTION_3, map, false)
+            expect(result).toMatchObject({
+                "sub": "6c5c0a49-b589-431d-bae7-219122a9ec2c",
+                "address": {
+                    "_sd": [
+                        "6vh9bq-zS4GKM_7GpggVbYzzu6oOGXrmNVGPHP75Ud0",
+                        "9gjVuXtdFROCgRrtNcGUXmF65rdezi_6Er_j76kmYyM",
+                        "KURDPh4ZC19-3tiz-Df39V8eidy1oV3a3H1Da2N0g88",
+                        "WN9r9dCBJ8HTCsS2jKASxTjEyW5m5x65_Z_2ro2jfXM"
+                    ]
+                }
+            })
+        })
+
+        it('Successfully expands an SD array element with recursion set to true', () => {
+            const hiddenArrayElement = createArrayElementDisclosable('hidden array element', '5BmatxlHVlz4g5ofzNWYJw')
+            const disclosures = [hiddenArrayElement.disclosure, ...ADDRESS_OPTION_3_DISCLOSURES]
+            const map = buildDigestDisclosableMap(disclosures)
+            const complexPayload = {
+                parent: ['entry1', {'...': hiddenArrayElement.digest}],
+                ...ADDRESS_OPTION_3
+            }
+
+            const result = expandDisclosures(complexPayload, map, true)
+            expect(result).toMatchObject({
+                "parent": [
+                    "entry1",
+                    "hidden array element"
+                ],
+                "sub": "6c5c0a49-b589-431d-bae7-219122a9ec2c",
+                "address": {
+                    "locality": "Schulpforta",
+                    "street_address": "Schulstr. 12",
+                    "region": "Sachsen-Anhalt",
+                    "country": "DE"
+                }
+            })
+          
+        })
+
+        it('Successfully expands an SD array element with recursion set to false', () => {
+            const hiddenArrayElement = createArrayElementDisclosable('hidden array element', '5BmatxlHVlz4g5ofzNWYJw')
+            const disclosures = [hiddenArrayElement.disclosure, ...ADDRESS_OPTION_3_DISCLOSURES]
+            const map = buildDigestDisclosableMap(disclosures)
+            const complexPayload = {
+                parent: ['entry1', {'...': hiddenArrayElement.digest}],
+                ...ADDRESS_OPTION_3
+            }
+
+            const result = expandDisclosures(complexPayload, map, false)
+            expect(result).toMatchObject({
+                "parent": [
+                    "entry1",
+                    "hidden array element"
+                ],
+                "sub": "6c5c0a49-b589-431d-bae7-219122a9ec2c",
+                "_sd_alg": "sha-256",
+                "address": {
+                    "_sd": [
+                        "6vh9bq-zS4GKM_7GpggVbYzzu6oOGXrmNVGPHP75Ud0",
+                        "9gjVuXtdFROCgRrtNcGUXmF65rdezi_6Er_j76kmYyM",
+                        "KURDPh4ZC19-3tiz-Df39V8eidy1oV3a3H1Da2N0g88",
+                        "WN9r9dCBJ8HTCsS2jKASxTjEyW5m5x65_Z_2ro2jfXM"
+                    ]
+                }
+            })
+            
         })
     })
 })

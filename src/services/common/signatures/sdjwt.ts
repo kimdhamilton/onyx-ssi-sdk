@@ -156,13 +156,13 @@ export async function createSdJWT(
  * Decodes an SD-JWT and returns an object representing the payload
  *
  * This performs the following checks required by SD-JWT 6.1.2-7:
- * - Ensure  nbf, iat, and exp clains, if present, are not selectively disclosed
  * - Ensure the _sd_alg header parameter is supported
  * - Ensure the disclosures are well-formed:
  *     - Object property disclosures are arrays of length 3
  *     - Array disclosures are arrays of length 2
  * - Claim names do not exist more than once (i.e. a disclosure does not overwrite a clear text claim)
  * - FIXME: need to add check that digests are not found more than once in the payload
+ * - FIXME: Ensure nbf, iat, and exp clains, if present, are not selectively disclosed
  *
  * Per 6.1.6 and 7, this ensures _sd and _sd_alg are removed from the payload. Because _sd may appear
  * these are removed in the (optionally) recursive expandDisclosures method (to avoid duplicate
@@ -263,9 +263,6 @@ export function expandDisclosures(
                 .map((digest: string) => {
                     const disclosable = disclosableMap.get(digest)
                     const claim = disclosable?.claim as ObjectPropertyClaim
-                    if (!isValidDisclosureKey(claim.key)) {
-                        throw new Error('Invalid disclosure key')
-                    }
                     return claim
                 })
             asObjectDisclosures.forEach((d) => {
@@ -347,7 +344,7 @@ function expandArrayElements(
  * @param {string} [sd_alg=DEFAULT_SD_ALG]
  * @return {*}  {Map<string, Disclosable>}
  */
-function buildDigestDisclosableMap(disclosures: string[], sd_alg: string = DEFAULT_SD_ALG): Map<string, Disclosable> {
+export function buildDigestDisclosableMap(disclosures: string[], sd_alg: string = DEFAULT_SD_ALG): Map<string, Disclosable> {
     const mapEntries = disclosures
         .map((disclosures) => {
             return parseDisclosure(disclosures, sd_alg)
@@ -357,10 +354,6 @@ function buildDigestDisclosableMap(disclosures: string[], sd_alg: string = DEFAU
         })
 
     return new Map(mapEntries.map((obj) => [obj.digest, obj.disclosable]))
-}
-
-function isValidDisclosureKey(key: string): boolean {
-    return !(key in ['nbf', 'iat', 'exp'])
 }
 
 
