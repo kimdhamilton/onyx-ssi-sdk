@@ -115,19 +115,19 @@ describe('SD-JWT utilities tests', () => {
                 { clearValue1: 'value3' }
             )
 
-            expect(sdJwtPayload!._sd!.length).toEqual(2)
-            expect(sdJwtPayload!.clearValue1).toEqual('value3')
+            expect(sdJwtPayload?._sd?.length).toEqual(2)
+            expect(sdJwtPayload?.clearValue1).toEqual('value3')
 
             expect(disclosables.length).toEqual(2)
 
             expect(
                 disclosables.find((d) => {
-                    return d.digest === sdJwtPayload!._sd![0]
+                    return d.digest === sdJwtPayload?._sd?.[0]
                 })
             ).toBeTruthy()
             expect(
                 disclosables.find((d) => {
-                    return d.digest === sdJwtPayload!._sd![1]
+                    return d.digest === sdJwtPayload?._sd?.[1]
                 })
             ).toBeTruthy()
         })
@@ -152,11 +152,11 @@ describe('SD-JWT utilities tests', () => {
 
             const { sdJwtPayload, disclosables } = sdJwtPayloadHelper(input, {})
 
-            expect(sdJwtPayload!._sd!.length).toEqual(8)
+            expect(sdJwtPayload?._sd?.length).toEqual(8)
 
             let decoded = {}
 
-            sdJwtPayload!._sd!.forEach((sd) => {
+            sdJwtPayload?._sd?.forEach((sd) => {
                 const match = disclosables.find((d) => d.digest === sd)
                 const claim = match?.claim as ObjectPropertyClaim
                 decoded = { ...decoded, [claim.key]: claim.value }
@@ -349,31 +349,6 @@ describe('SD-JWT core functionality', () => {
             ).rejects.toThrow()
         })
 
-        it('fails when a repeated claim seen', async () => {
-            // TODO: share error examples
-            /*  let { sdJwtPayload, disclosables } = sdJwtPayloadHelper(
-        { hiddenValue1: 'value1', hiddenValue2: 'value2' },
-        { clearValue1: 'value3' }
-      )
-
-      sdJwtPayload = {
-        hiddenValue1: 'value1',
-        ...sdJwtPayload,
-      }
-
-      const disclosures = disclosables.map((d) => {
-        return d.disclosure
-      })
-
-      expect(
-        createSdJWT(sdJwtPayload, {
-          issuer: did,
-          signer,
-          disclosures: disclosures,
-        })
-      ).rejects.toThrowError()
-    })*/
-        })
     })
 
     describe('decodeSdJWT()', () => {
@@ -422,12 +397,11 @@ describe('SD-JWT core functionality', () => {
             await expect(verifySdJWT(badEx1, { resolver })).rejects.toThrow()
         })
 
-        it('rejects an SD-JWT with an invalid signature', () => {})
-
         it('rejects an SD-JWT with unsupported sd_alg', async () => {
             const unsupportedSdAlgExample =
         'eyJ0eXAiOiJKV1QiLCJhbGciOiJFUzI1NksifQ.eyJpYXQiOjE2OTY1MzA2MDUsIl9zZF9hbGciOiJ1bnN1cHBvcnRlZCIsIl9zZCI6WyI3bm01MkR5eVNJQUlRUXA2bjlfLV80M3o3eTR1MnFqV2ZBUmdpWl93TmNNIiwiNUdmMG4tWlpNdXZONng1bEkxTG1LckNMWDdVMWtYUmpQN2RFMlBvemh1RSJdLCJjbGVhclZhbHVlMSI6InZhbHVlMyIsImlzcyI6ImRpZDpldGhyOjB4ZjNiZWFjMzBjNDk4ZDllMjY4NjVmMzRmY2FhNTdkYmI5MzViMGQ3NCJ9.dLP8epxmB5sBmVkkPy-SstzBpnRXXWqQDKtcbL9ZDo5J1FapbX9ZArZ1ZPKwIf2j74s60Vukg8IAg0ys-sezyg'
 
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
             const { sdJwtPayload, disclosables } = sdJwtPayloadHelper(
                 { hiddenValue1: 'value1', hiddenValue2: 'value2' },
                 { clearValue1: 'value3' }
@@ -439,7 +413,6 @@ describe('SD-JWT core functionality', () => {
             await expect(verifySdJWT(sdJwt, { resolver })).rejects.toThrow()
         })
 
-        it('rejects an SD-JWT with an ill-formed array disclosure', () => {})
         it('rejects an SD-JWT with an ill-formed object disclosure', async () => {
             const salt = createSalt()
 
@@ -452,12 +425,6 @@ describe('SD-JWT core functionality', () => {
 
             await expect(verifySdJWT(sdJwt, { resolver })).rejects.toThrow()
         })
-
-        it('rejects an SD-JWT with a repeated claim', async () => {
-            // TODO  expect(verifySdJWT(SD_JWT_REPEATED_CLAIM, { resolver })).rejects.toThrowError()
-        })
-
-        it('rejects an SD-JWT with digests found more than once', () => {})
     })
 })
 

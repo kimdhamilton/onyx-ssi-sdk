@@ -6,11 +6,132 @@ import { sha256 } from '@noble/hashes/sha256'
  * Minimum salt length per SD-JWT spec
  */
 const MINIMUM_SALT_LENGTH = 16
+/**
+ * Default hash algorithm for computing digests.
+ */
 export const DEFAULT_SD_ALG = 'sha-256'
+
+/*** 
+ * SD-JWT types
+ */
+
+export type JSONPrimitive = string | number | boolean | null
+export type JSONObject = { [key: string]: JSONValue }
+export type JSONArray = JSONValue[]
+
+/**
+ * Used to ensure values are JSON type; see 5.2.1 SD-JWT
+ */
+export type JSONValue = JSONPrimitive | JSONObject | JSONArray
+
+/**
+ * Extends {@link JWTPayload} to include the SD-JWT-specific fields
+ */
+export interface SdJWTPayload extends JWTPayload {
+    /** Hash algorithm used for disclosures */
+    _sd_alg: string
+    /** Contains digests of disclosures */
+    _sd?: string[]
+}
+
+/**
+ * Extends {@link JWTDecoded} to include SD-JWT extensions
+ * 
+ */
+export interface SdJWTDecoded extends JWTDecoded {
+    /**
+     * Note the type is {@link SdJWTPayload} and not {@link JWTPayload}.
+     * This is because SD-JWT decoding involves removing the _sd_alg and _sd fields,
+     * This is described in SD-JWT section 6. Verification and Processing 
+     */
+    payload: JWTPayload
+    /**
+     * base64url-encoded disclosures that issuers send to holders or 
+     * holders share with verifiers. These hash to the digests in the payload
+     */
+    disclosures: string[]
+    /**
+     * Optional key binding JWT -- not yet implemented
+     */
+    kb_jwt?: string
+}
+
+/**
+ * Extends {@link JWTVerified} to include SD-JWT extensions
+ */
+export interface SdJWTVerified extends JWTVerified {
+    payload: Partial<SdJWTPayload>
+}
+
+/**
+ * Extends {@link JWTOptions} to include SD-JWT-specific fields
+ */
+export interface SdJWTOptions extends JWTOptions {
+    /**
+     * base64url-encoded disclosures that issuers send to holders or holders share with verifiers.
+     * These hash to the digests in the payload.
+     */
+    disclosures: string[]
+    /**
+     * Optional key binding JWT -- not yet implemented
+     */
+    kb_jwt?: string
+}
+
+/**
+ * Abstraction to help issuers and holders (wallets) manage disclosures and digest mappings
+ */
+export interface Disclosable {
+    disclosure: string
+    digest: string
+    decodedDisclosure: JSONValue[]
+    claim: SDClaim
+}
+
+export interface SplitSdJWT {
+    jwt: string
+    disclosures: string[]
+    kbJwt?: string
+}
+
+export interface DisclosureOptions {
+    sd_alg?: string
+}
+
+/**
+ * Compatibility option to enable exact mmtching SD-JWT stringify examples
+ */
+export interface CreateDisclosureOptions extends DisclosureOptions {
+    specCompatStringify?: boolean
+}
+
+/**
+ * Clear text / decoded disclosure inputs
+ */
+export interface SDClaim {
+    salt: string
+    value: JSONValue
+}
+
+export type ArrayElementClaim = SDClaim
+
+export interface ObjectPropertyClaim extends SDClaim {
+    key: string
+}
+
+/**
+ * Helper object for creating SD-JWT payloads
+ */
+export interface SDJWTHelper {
+    sdJwtPayload: Partial<SdJWTPayload>
+    disclosables: Disclosable[]
+}
 
 
 /**
- * Create an SD-JWT
+ * Issue an SD-JWT payload, appending the `disclosures` from {@link SdJWTOptions}.
+ * 
+ * Key binding is not yet implemented.
  *
  * @export
  * @param {Partial<SdJWTPayload>} payload
@@ -23,40 +144,25 @@ export async function createSdJWT(
     { issuer, signer, alg, expiresIn, canonicalize, disclosures, kb_jwt }: SdJWTOptions,
     header: Partial<JWTHeader> = {}
 ): Promise<string> {
-    validateSdPayload(payload)
+    if (payload._sd_alg !== DEFAULT_SD_ALG) {
+        throw new Error(`Unsupported sd_alg: ${payload._sd_alg}`)
+    }
 
     const jwt = await createJWT(payload, { issuer, signer, alg, expiresIn, canonicalize }, header)
     return formSdJwt(jwt, disclosures, kb_jwt)
 }
 
 /**
- * // TODO: add strict / loose variants
- * one does deep check of ...
+ * Decodes an SD-JWT and returns an object representing the payload
  *
- * Design decisions:
- * - We're allowing creation of an SD-JWT without disclosures since those can be added later
- * -
- *
- * @param {Partial<SdJWTPayload>} payload
- */
-function validateSdPayload(payload: Partial<SdJWTPayload>) {
-    if (payload._sd_alg !== DEFAULT_SD_ALG) {
-        throw new Error(`Unsupported sd_alg: ${payload._sd_alg}`)
-    }
-    // TODO: what if no disclosures?
-}
-
-/**
- *  Decodes an SD-JWT and returns an object representing the payload
- *
- * This performs the following checks required by 6.1.2-7:
+ * This performs the following checks required by SD-JWT 6.1.2-7:
  * - Ensure  nbf, iat, and exp clains, if present, are not selectively disclosed
  * - Ensure the _sd_alg header parameter is supported
  * - Ensure the disclosures are well-formed:
  *     - Object property disclosures are arrays of length 3
  *     - Array disclosures are arrays of length 2
  * - Claim names do not exist more than once (i.e. a disclosure does not overwrite a clear text claim)
- * - Digests are not found more than once (TODO)
+ * - FIXME: need to add check that digests are not found more than once in the payload
  *
  * Per 6.1.6 and 7, this ensures _sd and _sd_alg are removed from the payload. Because _sd may appear
  * these are removed in the (optionally) recursive expandDisclosures method (to avoid duplicate
@@ -96,19 +202,13 @@ export function decodeSdJWT(sdJwt: string, recurse = true): SdJWTDecoded {
 }
 /**
  *
- * Verify an SD-JWT and return the payload, performing SD-JWT-specific checks via decodeSdJWT
+ * Verify an SD-JWT and return the payload, performing SD-JWT-specific checks via {@link decodeSdJWT}.
+ * 
+ * @see {@link verifyJWT} for additional details about {@link JWTVerifyOptions}
  *
  * @export
  * @param {string} sdJwt
- * @param {JWTVerifyOptions} [options={
- *     resolver: undefined,
- *     auth: undefined,
- *     audience: undefined,
- *     callbackUrl: undefined,
- *     skewTime: undefined,
- *     proofPurpose: undefined,
- *     policies: {},
- *   }]
+ * @param {JWTVerifyOptions} [options]
  * @return {*}  {Promise<JWTVerified>}
  */
 export async function verifySdJWT(
@@ -131,54 +231,14 @@ export async function verifySdJWT(
 }
 
 /**
- *
- *
- * @param {any[]} arrayElements
- * @param {Map<string, Disclosable>} disclosableMap
- * @param {boolean} recurse
- * @return {*}  {any[]}
- */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function expandArrayElements(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    arrayElements: any[],
-    disclosableMap: Map<string, Disclosable>,
-    recurse: boolean
-): JSONValue[] {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const mappedArray = [] as any[]
-    for (const element of arrayElements) {
-        if (typeof element === 'object') {
-            if ('...' in element) {
-                const disclosable = disclosableMap.get(element['...'])
-                // skip if not revealed in disclosures
-                if (!disclosable) {
-                    continue
-                }
-                mappedArray.push(disclosable.claim.value)
-            } else {
-                // else recurse into object if recurse is true; if not, just add the
-                // object back to the array
-                let el = element
-                if (recurse) {
-                    el = expandDisclosures(element, disclosableMap, recurse)
-                }
-                mappedArray.push(el)
-            }
-        } else {
-            // else its a primitive; add it to the array
-            mappedArray.push(element)
-        }
-    }
-    return mappedArray
-}
-
-/**
  * Search for disclosure digests in the payload and replace with the parsed disclosures,
  * with optional recursion into the payload, as described in 6.1.3.
  *
  * To avoid duplicate recursive processing, this expands the disclosures and deletes the
  * digests, per 6.1 Verification
+ * 
+ * Future improvement: we can stop processing once we've seen disclosures. 
+ * 
  * @export
  * @param {object} jwtPayload
  * @param {Map<string, Disclosable>} disclosableMap
@@ -192,7 +252,6 @@ export function expandDisclosures(
 ): object {
     // clone the input
     const wip = JSON.parse(JSON.stringify(jwtPayload))
-    // TODO: can stop when you’ve seen all disclosures. Note use counting for dupes in this too
 
     const entries = Object.entries(jwtPayload)
 
@@ -239,6 +298,50 @@ export function expandDisclosures(
 }
 
 /**
+ * Expands SD array elements into the payload
+ *
+ * @param {any[]} arrayElements
+ * @param {Map<string, Disclosable>} disclosableMap
+ * @param {boolean} recurse
+ * @return {*}  {any[]}
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function expandArrayElements(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    arrayElements: any[],
+    disclosableMap: Map<string, Disclosable>,
+    recurse: boolean
+): JSONValue[] {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const mappedArray = [] as any[]
+    for (const element of arrayElements) {
+        if (typeof element === 'object') {
+            if ('...' in element) {
+                const disclosable = disclosableMap.get(element['...'])
+                // skip if not revealed in disclosures
+                if (!disclosable) {
+                    continue
+                }
+                mappedArray.push(disclosable.claim.value)
+            } else {
+                // else recurse into object if recurse is true; if not, just add the
+                // object back to the array
+                let el = element
+                if (recurse) {
+                    el = expandDisclosures(element, disclosableMap, recurse)
+                }
+                mappedArray.push(el)
+            }
+        } else {
+            // else its a primitive; add it to the array
+            mappedArray.push(element)
+        }
+    }
+    return mappedArray
+}
+
+
+/**
  * Build a map of digests to Disclosables, which is used to reconstruct the payload
  * @param {string[]} disclosures
  * @param {string} [sd_alg=DEFAULT_SD_ALG]
@@ -261,77 +364,6 @@ function isValidDisclosureKey(key: string): boolean {
 }
 
 
-/*** 
- * SD-JWT types
- */
-
-export type JSONPrimitive = string | number | boolean | null
-export type JSONObject = { [key: string]: JSONValue }
-export type JSONArray = JSONValue[]
-
-/**
- * Used to ensure values are JSON type; see 5.2.1 SD-JWT
- */
-export type JSONValue = JSONPrimitive | JSONObject | JSONArray
-
-export interface SdJWTDecoded extends JWTDecoded {
-    payload: JWTPayload
-    disclosures: string[]
-    kb_jwt?: string
-}
-
-export interface SdJWTVerified extends JWTVerified {
-    payload: Partial<SdJWTPayload>
-}
-
-export interface SplitSdJWT {
-    jwt: string
-    disclosures: string[]
-    kbJwt?: string
-}
-
-export interface SdJWTPayload extends JWTPayload {
-    _sd_alg: string
-    _sd?: string[]
-}
-
-export interface SdJWTOptions extends JWTOptions {
-    disclosures: string[]
-    kb_jwt?: string
-}
-
-export interface Disclosable {
-    disclosure: string
-    digest: string
-    decodedDisclosure: JSONValue[]
-    claim: SDClaim
-}
-
-export interface SDClaim {
-    salt: string
-    value: JSONValue
-}
-
-export interface DisclosureOptions {
-    sd_alg?: string
-}
-
-export interface CreateDisclosureOptions extends DisclosureOptions {
-    specCompatStringify?: boolean
-}
-
-export type ArrayElementClaim = SDClaim
-
-export interface ObjectPropertyClaim extends SDClaim {
-    key: string
-}
-
-export interface SDJWTHelper {
-    sdJwtPayload: Partial<SdJWTPayload>
-    disclosables: Disclosable[]
-}
-
-
 /*** SD-JWT Utilities */
 
 
@@ -342,8 +374,6 @@ export interface SDJWTHelper {
  * This format is used when issuers send an SD-JWT to a holder, and when a holder
  * sends an SD=JWT to a verifier, with the important distinction that the holder may choose to
  * reveal a subset of the disclosures provided by the issuer.
- *
- * TODO: does the spec specify what happens if there are no disclosures?
  *
  * @export
  * @param {string} jwt
@@ -365,7 +395,7 @@ export function createSalt(length = MINIMUM_SALT_LENGTH): string {
  * Hash a disclosure using the specified hash algorithm.
  *
  * @export
- * @param {string} disclosure           base64url-encoded disclosure TODO: add regex to test
+ * @param {string} disclosure           base64url-encoded disclosure
  * @param {string} [sd_alg=DEFAULT_SD_ALG]     hash algorithm to use for disclosures
  * @return {*}  {string}                hashed disclosure
  */
@@ -455,7 +485,7 @@ export class ConcreteDisclosable implements Disclosable {
  * @param {JSONValue} value
  * @param {string} [salt=createSalt()]
  * @param {CreateDisclosureOptions} [options={ sd_alg: DEFAULT_SD_ALG }]
- * @return {*}  {Disclosable}        base64url-encoded disclosure TODO
+ * @return {*}  {Disclosable}
  */
 export function createObjectPropertyDisclosable(
     key: string,
@@ -465,7 +495,7 @@ export function createObjectPropertyDisclosable(
 ): Disclosable {
     const specStringify = options?.specCompatStringify || false
     const disclosureInput = [salt, key, value]
-    const disclosure = toDisclosure(disclosureInput, specStringify) // TODO: can save some steps
+    const disclosure = toDisclosure(disclosureInput, specStringify)
     return new ConcreteDisclosable(disclosure, options?.sd_alg)
 }
 
@@ -570,7 +600,6 @@ export function sdJwtPayloadHelper(
         }
     })
 
-    // TODO: handle the case that _sd was already populated
     const sdJwtInput = {
         _sd_alg: createOptions.sd_alg,
         _sd: sdArray,
