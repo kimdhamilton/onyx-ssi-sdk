@@ -8,9 +8,10 @@ import {
     createSalt,
     createSdJWT,
     decodeSdJWT,
+    encodeBase64url,
     formSdJwt,
+    fromString,
     hashDisclosure,
-    hexToBytes,
     parseDisclosure,
     sdJwtPayloadHelper,
     stringToBytes,
@@ -57,6 +58,29 @@ export const SPEC_COMPAT_OPTIONS = {
 }
 
 export const BASE64_URL_REGEX = new RegExp(/^[-A-Za-z0-9_/]*={0,3}$/)
+
+/**
+ * Included as a did-jwt workaround
+ * @param s 
+ * @param minLength 
+ * @returns 
+ */
+export function hexToBytes(s: string, minLength?: number): Uint8Array {
+    let input = s.startsWith('0x') ? s.substring(2) : s
+
+    if (input.length % 2 !== 0) {
+        input = `0${input}`
+    }
+
+    if (minLength) {
+        const paddedLength = Math.max(input.length, minLength * 2)
+        input = input.padStart(paddedLength, '00')
+    }
+
+    return fromString(input.toLowerCase(), 'hex')
+}
+
+
 
 
 describe('SD-JWT utilities tests', () => {
@@ -511,6 +535,14 @@ describe('SD-JWT creation helpers', () => {
                 expect(actual.disclosure).toEqual(defaultDisclosure)
             }
         )
+    })
+
+    describe('did-jwt workaround tests', () => {
+        it('encodeBase64url() works', () => {
+            const encoded = encodeBase64url('Alice')
+            expect(encoded).toEqual('QWxpY2U')
+        })
+
     })
 
 })

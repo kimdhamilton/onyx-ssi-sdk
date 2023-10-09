@@ -625,19 +625,3 @@ export function decodeBase64url(s: string): string {
 export function stringToBytes(s: string): Uint8Array {
     return fromString(s)
 }
-
-export function hexToBytes(s: string, minLength?: number): Uint8Array {
-    let input = s.startsWith('0x') ? s.substring(2) : s
-
-    if (input.length % 2 !== 0) {
-        input = `0${input}`
-    }
-
-    if (minLength) {
-        const paddedLength = Math.max(input.length, minLength * 2)
-        input = input.padStart(paddedLength, '00')
-    }
-
-    return fromString(input.toLowerCase(), 'hex')
-}
-
